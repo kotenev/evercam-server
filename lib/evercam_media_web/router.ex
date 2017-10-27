@@ -161,8 +161,6 @@ defmodule EvercamMediaWeb.Router do
       options "/cameras/:id/nvr/stream/vhinfo", NVRController, :nothing
       post "/cameras/:id/nvr/snapshots/extract", NVRController, :extract_snapshots
       options "/cameras/:id/nvr/snapshots/extract", NVRController, :nothing
-
-      get "/cameras/:id/apps/motion-detection", MotionDetectionController, :show
     end
 
     scope "/" do

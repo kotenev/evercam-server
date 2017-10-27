@@ -413,7 +413,6 @@ defmodule EvercamMediaWeb.CameraController do
   defp delete_camera_worker(camera) do
     MetaData.delete_by_camera_id(camera.id)
     CloudRecording.delete_by_camera_id(camera.id)
-    MotionDetection.delete_by_camera_id(camera.id)
     CameraShare.delete_by_camera_id(camera.id)
     CameraShareRequest.delete_by_camera_id(camera.id)
     Archive.delete_by_camera(camera.id)

@@ -16,7 +16,6 @@ defmodule Camera do
     has_many :shares, CameraShare
     has_one :cloud_recordings, CloudRecording
     has_one :timelapse_recordings, TimelapseRecording
-    has_one :motion_detections, MotionDetection
 
     field :exid, :string
     field :name, :string
@@ -38,7 +37,6 @@ defmodule Camera do
   def all do
     Camera
     |> preload(:cloud_recordings)
-    |> preload(:motion_detections)
     |> preload(:vendor_model)
     |> preload([vendor_model: :vendor])
     |> Repo.all
@@ -137,7 +135,6 @@ defmodule Camera do
     |> preload(:owner)
     |> preload(:cloud_recordings)
     |> preload(:timelapse_recordings)
-    |> preload(:motion_detections)
     |> preload([vendor_model: :vendor])
     |> preload([access_rights: :access_token])
     |> Repo.one
