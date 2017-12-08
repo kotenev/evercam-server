@@ -55,7 +55,7 @@ defmodule EvercamMedia.ArchiveCreator.ArchiveCreator do
             loop_list(snapshots, camera.exid, images_directory, 0)
             create_mp4(archive.exid, images_directory)
             Storage.save_mp4(camera.exid, archive.exid, images_directory)
-            # File.rm_rf images_directory
+            File.rm_rf images_directory
             update_archive(archive, total_snapshots, Archive.archive_status.completed)
             EvercamMedia.UserMailer.archive_completed(archive, archive.user.email)
         end

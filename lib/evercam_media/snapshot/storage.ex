@@ -144,7 +144,7 @@ defmodule EvercamMedia.Snapshot.Storage do
 
     from_days =
       apps_list
-      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{from_date}/", "Subdirectories", "Name") end)
+      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{from_date}/", "Directories", "Name") end)
       |> Enum.uniq
       |> Enum.map(fn(day) -> parse_hour(from.year, from.month, day, "00:00:00", timezone) end)
       |> Enum.reject(fn(datetime) -> Calendar.DateTime.before?(datetime, from) end)
@@ -152,7 +152,7 @@ defmodule EvercamMedia.Snapshot.Storage do
     url_base = "#{point_to_seaweed(to)}/#{camera_exid}/snapshots"
     to_days =
       apps_list
-      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{to_date}/", "Subdirectories", "Name") end)
+      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{to_date}/", "Directories", "Name") end)
       |> Enum.uniq
       |> Enum.map(fn(day) -> parse_hour(to.year, to.month, day, "00:00:00", timezone) end)
       |> Enum.reject(fn(datetime) -> Calendar.DateTime.after?(datetime, to) end)
@@ -170,7 +170,7 @@ defmodule EvercamMedia.Snapshot.Storage do
 
     from_hours =
       apps_list
-      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{from_date}/", "Subdirectories", "Name") end)
+      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{from_date}/", "Directories", "Name") end)
       |> Enum.uniq
       |> Enum.map(fn(hour) -> parse_hour(from.year, from.month, from.day, "#{hour}:00:00", timezone) end)
       |> Enum.reject(fn(datetime) -> Calendar.DateTime.before?(datetime, from) end)
@@ -178,7 +178,7 @@ defmodule EvercamMedia.Snapshot.Storage do
     url_base = "#{point_to_seaweed(to)}/#{camera_exid}/snapshots"
     to_hours =
       apps_list
-      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{to_date}/", "Subdirectories", "Name") end)
+      |> Enum.flat_map(fn(app) -> request_from_seaweedfs("#{url_base}/#{app}/#{to_date}/", "Directories", "Name") end)
       |> Enum.uniq
       |> Enum.map(fn(hour) -> parse_hour(to.year, to.month, to.day, "#{hour}:00:00", timezone) end)
       |> Enum.reject(fn(datetime) -> Calendar.DateTime.after?(datetime, to) end)
@@ -242,15 +242,20 @@ defmodule EvercamMedia.Snapshot.Storage do
 
   defp get_camera_apps_list(camera_exid, request_date \\ nil)
   defp get_camera_apps_list(camera_exid, nil) do
-    request_from_seaweedfs("#{@seaweedfs}/#{camera_exid}/snapshots/", "Subdirectories", "Name")
+    request_from_seaweedfs("#{@seaweedfs}/#{camera_exid}/snapshots/", "Directories", "Name")
   end
   defp get_camera_apps_list(camera_exid, request_date) do
-    request_from_seaweedfs("#{point_to_seaweed(request_date)}/#{camera_exid}/snapshots/", "Subdirectories", "Name")
+    case point_to_seaweed(request_date) do
+      base_url when base_url == @seaweedfs_1 ->
+        ["timelapse", "recordings", "snapmail", "archives"]
+      _ ->
+        request_from_seaweedfs("#{@seaweedfs}/#{camera_exid}/snapshots/", "Directories", "Name")
+    end
   end
 
   defp request_from_seaweedfs(url, type, attribute) do
-    hackney = [pool: :seaweedfs_download_pool]
-    with {:ok, response} <- HTTPoison.get(url, [], hackney: hackney),
+    hackney = [pool: :seaweedfs_download_pool, recv_timeout: 15000]
+    with {:ok, response} <- HTTPoison.get(url, ["Accept": "application/json"], hackney: hackney),
          %HTTPoison.Response{status_code: 200, body: body} <- response,
          {:ok, data} <- Poison.decode(body),
          true <- is_list(data[type]) do
@@ -398,7 +403,7 @@ defmodule EvercamMedia.Snapshot.Storage do
     {{year, month, day}, {h, _m, _s}} = Ecto.DateTime.utc |> Ecto.DateTime.to_erl
 
     {snapshot, error, _datetime} =
-      request_from_seaweedfs(url, "Subdirectories", "Name")
+      request_from_seaweedfs(url, "Directories", "Name")
       |> Enum.reduce({{}, {}, {year, month, day, h}}, fn(note, {snapshot, error, datetime}) ->
         {yr, mh, dy, hr} = datetime
         case get_oldest_snapshot(url, note, yr, mh, dy, hr) do
@@ -452,7 +457,7 @@ defmodule EvercamMedia.Snapshot.Storage do
     end
   end
 
-  defp get_oldest_directory_name(directory, url, type \\ "Subdirectories", attribute \\ "Name") do
+  defp get_oldest_directory_name(directory, url, type \\ "Directories", attribute \\ "Name") do
     {
       directory,
       request_from_seaweedfs(url, type, attribute)
@@ -513,7 +518,7 @@ defmodule EvercamMedia.Snapshot.Storage do
     end
   end
 
-  defp oldest_directory_name(cloud_recording, directory, url, type \\ "Subdirectories", attribute \\ "Name")
+  defp oldest_directory_name(cloud_recording, directory, url, type \\ "Directories", attribute \\ "Name")
   defp oldest_directory_name(%CloudRecording{storage_duration: -1}, directory, url, type, attribute) do
     {structure, attr} =
       case directory do
@@ -675,7 +680,7 @@ defmodule EvercamMedia.Snapshot.Storage do
   defp list_stored_days_for_camera(urls, []), do: urls
   defp list_stored_days_for_camera(urls, [_current|rest]) do
     Enum.flat_map(urls, fn(url) ->
-      request_from_seaweedfs(url, "Subdirectories", "Name")
+      request_from_seaweedfs(url, "Directories", "Name")
       |> Enum.map(fn(path) -> "#{url}#{path}/" end)
     end)
     |> list_stored_days_for_camera(rest)
@@ -707,7 +712,7 @@ defmodule EvercamMedia.Snapshot.Storage do
   end
 
   def remove_deleted_cameras do
-    request_from_seaweedfs("#{@seaweedfs}/", "Subdirectories", "Name")
+    request_from_seaweedfs("#{@seaweedfs}/", "Directories", "Name")
     |> Enum.filter(fn(exid) -> Camera.by_exid(exid) == nil end)
     |> Enum.each(fn(exid) -> delete_everything_for(exid) end)
   end
